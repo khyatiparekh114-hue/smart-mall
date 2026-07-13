@@ -1,0 +1,105 @@
+const Order = require('../models/Order');
+const Cart = require('../models/Cart');
+const Product = require('../models/Product');
+
+const generateExitCode = () => {
+  return 'EXIT-' + Math.floor(1000 + Math.random() * 9000);
+};
+
+// @desc    Checkout cart and create an order
+// @route   POST /api/orders/checkout
+const checkoutOrder = async (req, res) => {
+  try {
+    const { cartType, pickupSlot } = req.body;
+
+    const cart = await Cart.findOne({
+      user: req.user._id,
+      cartType,
+      isCheckedOut: false,
+    }).populate('items.product');
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    for (const item of cart.items) {
+      if (item.product.stock < item.quantity) {
+        return res.status(400).json({
+          message: `${item.product.name} is out of stock`,
+        });
+      }
+    }
+
+    const orderItems = cart.items.map((item) => ({
+      product: item.product._id,
+      name: item.product.name,
+      quantity: item.quantity,
+      price: item.priceAtAddition,
+    }));
+
+    const totalAmount = orderItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    const orderData = {
+      user: req.user._id,
+      orderType: cartType,
+      items: orderItems,
+      totalAmount,
+      paymentStatus: 'paid',
+    };
+
+    if (cartType === 'scan_and_go') {
+      orderData.exitCode = generateExitCode();
+    } else if (cartType === 'pre_book') {
+      orderData.pickupSlot = pickupSlot || new Date();
+      orderData.pickupCounter = 'Express Counter 1';
+      orderData.orderStatus = 'placed';
+    }
+
+    const order = await Order.create(orderData);
+
+    for (const item of cart.items) {
+      await Product.findByIdAndUpdate(item.product._id, {
+        $inc: { stock: -item.quantity },
+      });
+    }
+
+    cart.isCheckedOut = true;
+    await cart.save();
+
+    res.status(201).json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get logged-in user's orders
+// @route   GET /api/orders/my-orders
+const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get a single order by ID
+// @route   GET /api/orders/:id
+const getOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { checkoutOrder, getMyOrders, getOrderById };
