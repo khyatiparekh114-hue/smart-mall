@@ -2,17 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
-const Cart = () => {
+const PreBookCart = () => {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
   const navigate = useNavigate();
 
   const fetchCart = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/cart/scan_and_go');
+      const { data } = await api.get('/cart/pre_book');
       setCart(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not load cart');
@@ -29,23 +30,11 @@ const Cart = () => {
     try {
       setError('');
       await api.delete(`/cart/remove/${productId}`, {
-        data: { cartType: 'scan_and_go' },
+        data: { cartType: 'pre_book' },
       });
       fetchCart();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not remove item');
-    }
-  };
-
-  const handleCheckout = async () => {
-    try {
-      setError('');
-      const { data } = await api.post('/orders/checkout', {
-        cartType: 'scan_and_go',
-      });
-      navigate('/my-orders', { state: { newOrder: data } });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Checkout failed');
     }
   };
 
@@ -57,19 +46,41 @@ const Cart = () => {
     );
   };
 
+  const handleCheckout = async () => {
+    if (!pickupDate || !pickupTime) {
+      setError('Please select a pickup date and time');
+      return;
+    }
+
+    try {
+      setError('');
+      const pickupSlot = new Date(`${pickupDate}T${pickupTime}`);
+
+      const { data } = await api.post('/orders/checkout', {
+        cartType: 'pre_book',
+        pickupSlot: pickupSlot.toISOString(),
+      });
+
+      navigate('/my-orders', { state: { newOrder: data } });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Checkout failed');
+    }
+  };
+
   if (loading) {
     return <p style={styles.centerText}>Loading cart...</p>;
   }
 
   return (
     <div style={styles.container}>
-      <h2>🛒 Your Scan & Go Cart</h2>
+      <h2>📦 Your Pre-Book Cart</h2>
 
       {error && <p style={styles.error}>{error}</p>}
-      {message && <p style={styles.success}>{message}</p>}
 
       {(!cart || !cart.items || cart.items.length === 0) && (
-        <p style={styles.centerText}>Your cart is empty. Go scan some products!</p>
+        <p style={styles.centerText}>
+          Your Pre-Book cart is empty. Go browse some products!
+        </p>
       )}
 
       {cart && cart.items && cart.items.length > 0 && (
@@ -96,8 +107,29 @@ const Cart = () => {
             <h3>Total: ₹{calculateTotal()}</h3>
           </div>
 
+          <div style={styles.pickupForm}>
+            <h4>Select Pickup Slot</h4>
+
+            <label style={styles.label}>Date</label>
+            <input
+              type="date"
+              value={pickupDate}
+              onChange={(e) => setPickupDate(e.target.value)}
+              style={styles.input}
+              min={new Date().toISOString().split('T')[0]}
+            />
+
+            <label style={styles.label}>Time</label>
+            <input
+              type="time"
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
           <button onClick={handleCheckout} style={styles.checkoutButton}>
-            Checkout & Get Exit Code
+            Confirm Pre-Book & Pay
           </button>
         </>
       )}
@@ -138,6 +170,25 @@ const styles = {
     marginTop: '20px',
     marginBottom: '10px',
   },
+  pickupForm: {
+    marginTop: '20px',
+    padding: '15px',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+  },
+  label: {
+    display: 'block',
+    marginTop: '10px',
+    marginBottom: '5px',
+    fontSize: '14px',
+  },
+  input: {
+    width: '100%',
+    padding: '10px',
+    borderRadius: '5px',
+    border: '1px solid #ccc',
+    fontSize: '15px',
+  },
   checkoutButton: {
     width: '100%',
     padding: '14px',
@@ -147,15 +198,12 @@ const styles = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '16px',
+    marginTop: '20px',
   },
   error: {
     color: 'red',
     textAlign: 'center',
   },
-  success: {
-    color: 'green',
-    textAlign: 'center',
-  },
 };
 
-export default Cart;
+export default PreBookCart;

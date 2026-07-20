@@ -7,6 +7,7 @@ import ScanAndGo from './pages/ScanAndGo/ScanAndGo';
 import PreBook from './pages/PreBook/PreBook';
 import Cart from './pages/Cart/Cart';
 import MyOrders from './pages/Orders/MyOrders';
+import PreBookCart from './pages/PreBook/PreBookCart';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Route path="/pre-book" element={<PreBook />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/my-orders" element={<MyOrders />} />
+      <Route path="/pre-book-cart" element={<PreBookCart />} />
     </Routes>
   );
 }

@@ -14,24 +14,26 @@ const Navbar = () => {
   return (
     <nav style={styles.nav}>
       <Link to="/" style={styles.logo}>
-        🏬 Smart Mall
+        SMART<span style={styles.logoAccent}>MALL</span>
       </Link>
 
       <div style={styles.links}>
         <Link to="/scan-and-go" style={styles.link}>Scan & Go</Link>
         <Link to="/pre-book" style={styles.link}>Pre-Book</Link>
         <Link to="/cart" style={styles.link}>Cart</Link>
-        <Link to="/my-orders" style={styles.link}>My Orders</Link>
+        <Link to="/my-orders" style={styles.link}>Orders</Link>
 
         {user ? (
           <>
-            <span style={styles.link}>Hi, {user.name}</span>
-            <button onClick={handleLogout} style={styles.button}>Logout</button>
+            <span style={styles.userName}>{user.name.split(' ')[0]}</span>
+            <button onClick={handleLogout} style={styles.button}>
+              Logout
+            </button>
           </>
         ) : (
           <>
             <Link to="/login" style={styles.link}>Login</Link>
-            <Link to="/signup" style={styles.link}>Signup</Link>
+            <Link to="/signup" style={styles.signupButton}>Signup</Link>
           </>
         )}
       </div>
@@ -44,33 +46,57 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '15px 30px',
-    backgroundColor: '#1a1a2e',
-    color: '#fff',
+    padding: '16px 32px',
+    backgroundColor: 'var(--color-ink)',
+    borderBottom: '3px solid var(--color-amber)',
   },
   logo: {
+    fontFamily: 'var(--font-display)',
     fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '800',
+    letterSpacing: '0.5px',
+    color: 'var(--color-white)',
     textDecoration: 'none',
+  },
+  logoAccent: {
+    color: 'var(--color-amber)',
   },
   links: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '24px',
   },
   link: {
-    color: '#fff',
+    color: '#D8D6CC',
     textDecoration: 'none',
-    fontSize: '15px',
+    fontSize: '14px',
+    fontWeight: '500',
+    fontFamily: 'var(--font-body)',
+  },
+  userName: {
+    color: 'var(--color-amber)',
+    fontSize: '14px',
+    fontWeight: '600',
   },
   button: {
-    padding: '6px 14px',
-    backgroundColor: '#e94560',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    color: 'var(--color-white)',
+    border: '1px solid var(--color-line)',
+    borderRadius: '4px',
     cursor: 'pointer',
+    fontSize: '13px',
+    fontFamily: 'var(--font-body)',
+  },
+  signupButton: {
+    padding: '8px 18px',
+    backgroundColor: 'var(--color-amber)',
+    color: 'var(--color-ink)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '700',
+    textDecoration: 'none',
   },
 };
 

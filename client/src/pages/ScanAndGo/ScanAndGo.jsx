@@ -1,119 +1,130 @@
-import { useState, useRef } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import api from '../../services/api';
+import { useState, useRef } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import api from "../../services/api";
 
 const ScanAndGo = () => {
-  const [scanning, setScanning] = useState(false);
-  const [product, setProduct] = useState(null);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const videoRef = useRef(null);
-  const codeReaderRef = useRef(null);
-  const controlsRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  const startScanning = async () => {
-    setError('');
-    setMessage('');
+  const [product, setProduct] = useState(null);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [preview, setPreview] = useState("");
+  const [scanning, setScanning] = useState(false);
+
+  const fetchProduct = async (barcode) => {
+    try {
+      setError("");
+      setMessage("");
+
+      const { data } = await api.get(`/products/barcode/${barcode}`);
+
+      setProduct(data);
+    } catch (err) {
+      setProduct(null);
+      setError(
+        err.response?.data?.message || "Product not found for this barcode."
+      );
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    setError("");
+    setMessage("");
     setProduct(null);
     setScanning(true);
 
-    const codeReader = new BrowserMultiFormatReader();
-    codeReaderRef.current = codeReader;
+    const imageUrl = URL.createObjectURL(file);
+    setPreview(imageUrl);
 
     try {
-      const controls = await codeReader.decodeFromConstraints(
-        {
-          video: { facingMode: 'environment' },
-        },
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            const decodedText = result.getText();
-            stopScanning();
-            fetchProduct(decodedText);
-          }
-        }
-      );
-      controlsRef.current = controls;
+      const codeReader = new BrowserMultiFormatReader();
+      const result = await codeReader.decodeFromImageUrl(imageUrl);
+
+      console.log("Detected:", result.getText());
+      fetchProduct(result.getText());
     } catch (err) {
-      setError('Could not start camera. Please check camera permission.');
+      setError(
+        "Barcode not detected. Please try a clearer, well-lit image with the barcode filling more of the frame, or use manual entry."
+      );
+    } finally {
       setScanning(false);
     }
   };
 
-  const stopScanning = () => {
-    if (controlsRef.current) {
-      controlsRef.current.stop();
-      controlsRef.current = null;
-    }
-    setScanning(false);
-  };
-
-  const fetchProduct = async (barcode) => {
-    try {
-      const { data } = await api.get(`/products/barcode/${barcode}`);
-      setProduct(data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Product not found for this barcode');
-    }
-  };
-
   const addToCart = async () => {
+    if (!product) return;
+
     try {
-      await api.post('/cart/add', {
+      await api.post("/cart/add", {
         productId: product._id,
         quantity: 1,
-        cartType: 'scan_and_go',
+        cartType: "scan_and_go",
       });
-      setMessage(`${product.name} added to cart!`);
+
+      setMessage(`${product.name} added to cart successfully!`);
       setProduct(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not add to cart');
-    }
-  };
-
-  const handleManualEntry = () => {
-    const barcode = prompt('Enter barcode manually:');
-    if (barcode) {
-      fetchProduct(barcode.trim());
+      setError(err.response?.data?.message || "Failed to add product to cart.");
     }
   };
 
   return (
     <div style={styles.container}>
-      <h2>Scan & Go</h2>
-      <p>Scan a product barcode to add it to your cart.</p>
+      <h2>📦 Scan & Go</h2>
 
-      {!scanning && (
-        <button onClick={startScanning} style={styles.button}>
-          Start Scanning
-        </button>
-      )}
+      <p>Upload a barcode image to detect the product.</p>
 
-      {scanning && (
-        <button onClick={stopScanning} style={styles.stopButton}>
-          Stop Scanning
-        </button>
-      )}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        style={{ display: "none" }}
+      />
 
-      <button onClick={handleManualEntry} style={styles.manualButton}>
-        Enter Barcode Manually
+      <button
+        style={styles.button}
+        onClick={() => fileInputRef.current.click()}
+        disabled={scanning}
+      >
+        {scanning ? "Scanning..." : "Upload Barcode Image"}
       </button>
 
-      <video ref={videoRef} style={styles.video} />
+
+      {preview && (
+        <img src={preview} alt="Barcode Preview" style={styles.preview} />
+      )}
 
       {error && <p style={styles.error}>{error}</p>}
+
       {message && <p style={styles.success}>{message}</p>}
 
       {product && (
         <div style={styles.productCard}>
           <h3>{product.name}</h3>
-          <p>{product.description}</p>
-          <p>Price: ₹{product.price}</p>
-          <p>Stock: {product.stock}</p>
-          <p>Section: {product.storeSection}</p>
-          <button onClick={addToCart} style={styles.button}>
-            Add to Cart
+
+          <p>
+            <strong>Description:</strong> {product.description}
+          </p>
+
+          <p>
+            <strong>Price:</strong> ₹{product.price}
+          </p>
+
+          <p>
+            <strong>Stock:</strong> {product.stock}
+          </p>
+
+          <p>
+            <strong>Section:</strong> {product.storeSection}
+          </p>
+
+          <button style={styles.button} onClick={addToCart}>
+            Add To Cart
           </button>
         </div>
       )}
@@ -123,59 +134,49 @@ const ScanAndGo = () => {
 
 const styles = {
   container: {
-    padding: '30px',
-    maxWidth: '500px',
-    margin: '0 auto',
+    maxWidth: "600px",
+    margin: "40px auto",
+    padding: "20px",
+    textAlign: "center",
+    fontFamily: "Arial",
   },
+
   button: {
-    padding: '10px 20px',
-    backgroundColor: '#1a1a2e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '15px',
-    marginTop: '10px',
+    padding: "10px 20px",
+    background: "#1a1a2e",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    margin: "10px",
   },
-  stopButton: {
-    padding: '10px 20px',
-    backgroundColor: '#e94560',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '15px',
-    marginTop: '10px',
+
+  preview: {
+    width: "100%",
+    maxWidth: "350px",
+    marginTop: "20px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
   },
-  manualButton: {
-    padding: '10px 20px',
-    backgroundColor: '#555',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '15px',
-    marginTop: '10px',
-    marginLeft: '10px',
-  },
-  video: {
-    width: '100%',
-    marginTop: '20px',
-    borderRadius: '8px',
-  },
-  error: {
-    color: 'red',
-    marginTop: '15px',
-  },
-  success: {
-    color: 'green',
-    marginTop: '15px',
-  },
+
   productCard: {
-    marginTop: '20px',
-    padding: '15px',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
+    marginTop: "20px",
+    padding: "20px",
+    border: "1px solid #ddd",
+    borderRadius: "10px",
+    textAlign: "left",
+  },
+
+  error: {
+    color: "red",
+    marginTop: "15px",
+    fontWeight: "bold",
+  },
+
+  success: {
+    color: "green",
+    marginTop: "15px",
+    fontWeight: "bold",
   },
 };
 
