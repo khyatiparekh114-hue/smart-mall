@@ -37,5 +37,19 @@ const getProductByBarcode = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Get a single product by its database ID
+// @route   GET /api/products/:id
+const getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
 
-module.exports = { createProduct, getAllProducts, getProductByBarcode };
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.status(200).json(product);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+module.exports = { createProduct, getAllProducts, getProductByBarcode, getProductById};
