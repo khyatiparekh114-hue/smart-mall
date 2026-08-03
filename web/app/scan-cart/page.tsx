@@ -6,6 +6,7 @@ import { Trash2, ShoppingBag, ArrowRight, CheckCircle2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { PaymentModal } from "@/components/payment-modal"
 
 type CartItem = {
   _id: string
@@ -20,6 +21,7 @@ export default function ScanCartPage() {
   const [error, setError] = useState("")
   const [placing, setPlacing] = useState(false)
   const [order, setOrder] = useState<any>(null)
+  const [showPayment, setShowPayment] = useState(false)
 
   const fetchCart = async () => {
     try {
@@ -43,18 +45,15 @@ export default function ScanCartPage() {
 
   const total = items.reduce((sum, i) => sum + i.priceAtAddition * i.quantity, 0)
 
-  const handleCheckout = async () => {
-    setError("")
-    setPlacing(true)
-    try {
-      const data = await api.post("/orders/checkout", { cartType: "scan_and_go" })
-      setOrder(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed")
-    } finally {
-      setPlacing(false)
-    }
-  }
+ const handleCheckout = () => {
+  setError("")
+  setShowPayment(true)
+}
+
+const handlePaymentSuccess = async () => {
+  const data = await api.post("/orders/checkout", { cartType: "scan_and_go" })
+  setOrder(data)
+}
 
   if (loading) {
     return <div className="mx-auto max-w-2xl px-4 py-20 text-center text-muted-foreground">Loading cart...</div>
@@ -149,16 +148,22 @@ export default function ScanCartPage() {
             </div>
 
             <Button
-              size="lg"
-              onClick={handleCheckout}
-              disabled={placing}
-              className="mt-5 w-full gap-2 rounded-full glow-primary"
-            >
-              {placing ? "Processing..." : "Pay & Get Exit Code"} <ArrowRight className="h-4 w-4" />
-            </Button>
+  size="lg"
+  onClick={handleCheckout}
+  className="mt-5 w-full gap-2 rounded-full glow-primary"
+>
+  Pay & Get Exit Code <ArrowRight className="h-4 w-4" />
+</Button>
           </div>
         </>
       )}
+      {showPayment && (
+  <PaymentModal
+    amount={total}
+    onSuccess={handlePaymentSuccess}
+    onClose={() => setShowPayment(false)}
+  />
+)}
     </div>
   )
 }

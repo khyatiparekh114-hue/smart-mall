@@ -101,5 +101,50 @@ const getOrderById = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Verify a Scan & Go exit code at the gate (staff use)
+// @route   POST /api/orders/verify-exit
+const verifyExitCode = async (req, res) => {
+  try {
+    const { exitCode } = req.body;
 
-module.exports = { checkoutOrder, getMyOrders, getOrderById };
+    if (!exitCode) {
+      return res.status(400).json({ allowed: false, message: 'No exit code provided' });
+    }
+
+    const order = await Order.findOne({ exitCode, orderType: 'scan_and_go' }).populate(
+      'user',
+      'name email'
+    );
+
+    if (!order) {
+      return res.status(404).json({ allowed: false, message: 'Invalid exit code — no matching order' });
+    }
+
+    if (order.paymentStatus !== 'paid') {
+      return res.status(400).json({ allowed: false, message: 'Order is not paid for' });
+    }
+
+    if (order.exitVerified) {
+      return res.status(400).json({
+        allowed: false,
+        message: `This code was already used at ${new Date(order.exitVerifiedAt).toLocaleString('en-IN')}`,
+      });
+    }
+
+    order.exitVerified = true;
+    order.exitVerifiedAt = new Date();
+    await order.save();
+
+    res.status(200).json({
+      allowed: true,
+      message: 'Exit approved',
+      customerName: order.user?.name,
+      items: order.items,
+      totalAmount: order.totalAmount,
+    });
+  } catch (error) {
+    res.status(500).json({ allowed: false, message: error.message });
+  }
+};
+
+module.exports = { checkoutOrder, getMyOrders, getOrderById, verifyExitCode };

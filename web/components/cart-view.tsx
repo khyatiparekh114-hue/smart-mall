@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useStore } from "@/components/store-provider"
+import { PaymentModal } from "@/components/payment-modal"
 
 export function CartView() {
   const { cart, cartLoading, updateQty, removeFromCart, checkout, cartTotal, cartCount } = useStore()
@@ -17,24 +18,22 @@ export function CartView() {
   const [error, setError] = useState("")
   const [placing, setPlacing] = useState(false)
   const [order, setOrder] = useState<any>(null)
+  const [showPayment, setShowPayment] = useState(false)
 
-  const handleCheckout = async () => {
-    if (!pickupDate || !pickupTime) {
-      setError("Please select a pickup date and time")
-      return
-    }
-    setError("")
-    setPlacing(true)
-    try {
-      const pickupSlot = new Date(`${pickupDate}T${pickupTime}`).toISOString()
-      const data = await checkout(pickupSlot)
-      setOrder(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed")
-    } finally {
-      setPlacing(false)
-    }
+ const handleCheckout = () => {
+  if (!pickupDate || !pickupTime) {
+    setError("Please select a pickup date and time")
+    return
   }
+  setError("")
+  setShowPayment(true)
+}
+
+const handlePaymentSuccess = async () => {
+  const pickupSlot = new Date(`${pickupDate}T${pickupTime}`).toISOString()
+  const data = await checkout(pickupSlot)
+  setOrder(data)
+}
 
   if (cartLoading) {
     return (
@@ -206,18 +205,24 @@ export function CartView() {
 
             {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
 
-            <Button
-              size="lg"
-              onClick={handleCheckout}
-              disabled={placing}
-              className="mt-5 w-full gap-2 rounded-full glow-primary"
-            >
-              {placing ? "Placing order..." : "Confirm & Pay"} <ArrowRight className="h-4 w-4" />
-            </Button>
+           <Button
+  size="lg"
+  onClick={handleCheckout}
+  className="mt-5 w-full gap-2 rounded-full glow-primary"
+>
+  Confirm & Pay <ArrowRight className="h-4 w-4" />
+</Button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Secure checkout · Pickup at Smart Mall
             </p>
           </aside>
+          {showPayment && (
+  <PaymentModal
+    amount={cartTotal}
+    onSuccess={handlePaymentSuccess}
+    onClose={() => setShowPayment(false)}
+  />
+)}
         </div>
       )}
     </div>

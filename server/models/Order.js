@@ -63,6 +63,13 @@ const orderSchema = new mongoose.Schema(
       enum: ['placed', 'packed', 'ready_for_pickup', 'completed', 'cancelled'],
       default: 'placed',
     },
+    exitVerified: {
+  type: Boolean,
+  default: false,
+},
+exitVerifiedAt: {
+  type: Date,
+},
   },
   { timestamps: true }
 );
