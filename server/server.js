@@ -8,9 +8,18 @@ const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const cron = require('node-cron');
+const removeExpiredProducts = require('./utils/expiryCleanup');
 
 dotenv.config();
 connectDB();
+// Run once immediately when server starts
+removeExpiredProducts();
+
+// Then run automatically every day at midnight
+cron.schedule('0 0 * * *', () => {
+  removeExpiredProducts();
+});
 
 const app = express();
 
@@ -22,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+
 
 // Test route
 app.get('/', (req, res) => {

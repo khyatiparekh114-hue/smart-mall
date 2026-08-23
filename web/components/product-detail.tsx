@@ -21,9 +21,11 @@ import { useProducts } from "@/lib/use-products"
 import { api } from "@/lib/api"
 import { adaptProduct } from "@/lib/product-adapter"
 import type { Product } from "@/lib/data"
+import { useRouter } from "next/navigation"
 
 export function ProductDetail({ id }: { id: string }) {
   const { addToCart, toggleWishlist, wishlist } = useStore()
+  const router = useRouter()
   const { products } = useProducts()
 
   const [product, setProduct] = useState<Product | null>(null)
@@ -58,11 +60,10 @@ export function ProductDetail({ id }: { id: string }) {
   const wished = wishlist.includes(product.id)
   const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4)
 
-  function handleAdd() {
-    addToCart(product!, qty)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1800)
-  }
+async function handleAdd() {
+  await addToCart(product!, qty)
+  router.push("/cart")
+}
 
   const perks = [
     { icon: Truck, label: "Available for Express pickup" },

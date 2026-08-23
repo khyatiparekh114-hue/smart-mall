@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useRef } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { BrowserMultiFormatReader } from "@zxing/browser"
-import { ScanLine, Upload, CheckCircle2, Plus } from "lucide-react"
+import { ScanLine, Upload } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
@@ -17,12 +17,13 @@ type ScannedProduct = {
 }
 
 export default function ScanPage() {
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState("")
   const [scanning, setScanning] = useState(false)
   const [product, setProduct] = useState<ScannedProduct | null>(null)
   const [error, setError] = useState("")
-  const [added, setAdded] = useState(false)
+  const [addingToCart, setAddingToCart] = useState(false)
 
   const fetchProduct = async (barcode: string) => {
     try {
@@ -41,7 +42,6 @@ export default function ScanPage() {
 
     setError("")
     setProduct(null)
-    setAdded(false)
     setScanning(true)
 
     const imageUrl = URL.createObjectURL(file)
@@ -60,15 +60,17 @@ export default function ScanPage() {
 
   const addToCart = async () => {
     if (!product) return
+    setAddingToCart(true)
     try {
       await api.post("/cart/add", {
         productId: product._id,
         quantity: 1,
         cartType: "scan_and_go",
       })
-      setAdded(true)
+      router.push("/scan-cart")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add to cart")
+      setAddingToCart(false)
     }
   }
 
@@ -120,23 +122,17 @@ export default function ScanPage() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Section: {product.storeSection}</p>
 
-          {added ? (
-            <div className="mt-5 flex items-center justify-center gap-2 rounded-full bg-primary/15 py-3 text-sm font-medium text-primary">
-              <CheckCircle2 className="h-4 w-4" /> Added to cart
-            </div>
-          ) : (
-            <Button onClick={addToCart} className="mt-5 w-full gap-2 rounded-full">
-              <Plus className="h-4 w-4" /> Add to cart
-            </Button>
-          )}
+          <Button onClick={addToCart} disabled={addingToCart} className="mt-5 w-full gap-2 rounded-full">
+            {addingToCart ? "Adding..." : "Add to cart"}
+          </Button>
         </div>
       )}
 
       <p className="mt-8 text-xs text-muted-foreground">
         Ready to leave?{" "}
-        <Link href="/scan-cart" className="underline underline-offset-4">
-  Go to your Scan & Go cart
-</Link>
+        <a href="/scan-cart" className="underline underline-offset-4">
+          Go to your Scan & Go cart
+        </a>
       </p>
     </div>
   )

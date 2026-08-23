@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { useStore } from "@/components/store-provider"
 import type { Product } from "@/lib/data"
+import { useRouter } from "next/navigation"
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart, toggleWishlist, wishlist } = useStore()
+  const router = useRouter()
   const wished = wishlist.includes(product.id)
 
   return (
@@ -69,14 +71,17 @@ export function ProductCard({ product }: { product: Product }) {
   </span>
 )}
           </div>
-          <button
-            onClick={() => addToCart(product)}
-            disabled={!product.inStock}
-            aria-label="Add to cart"
-            className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-40"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+         <button
+  onClick={async () => {
+    await addToCart(product)
+    router.push("/cart")
+  }}
+  disabled={!product.inStock}
+  aria-label="Add to cart"
+  className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-40"
+>
+  <Plus className="h-4 w-4" />
+</button>
         </div>
         {!product.inStock && (
           <p className="mt-2 text-xs text-red-300">Out of stock</p>

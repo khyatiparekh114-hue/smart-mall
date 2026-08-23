@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Search,
   ShoppingCart,
@@ -11,11 +11,13 @@ import {
   X,
   ScanLine,
   Sparkles,
+  Star,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useStore } from "@/components/store-provider"
 import { useAuth } from "@/contexts/auth-context"
+import { api } from "@/lib/api"
 
 const links = [
   { href: "/products", label: "Shop" },
@@ -29,6 +31,16 @@ export function Navbar() {
   const { cartCount, wishlist } = useStore()
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
+  const [points, setPoints] = useState(0)
+
+  useEffect(() => {
+    if (user) {
+      api
+        .get("/auth/me")
+        .then((data) => setPoints(data.loyaltyPoints || 0))
+        .catch(() => setPoints(0))
+    }
+  }, [user])
 
   return (
     <header className="sticky top-0 z-50 w-full">
@@ -94,15 +106,20 @@ export function Navbar() {
             </Link>
 
             {user ? (
-              <button
-                onClick={logout}
-                className="hidden items-center gap-2 rounded-full border border-border bg-white/5 px-3 py-1.5 text-xs font-medium sm:flex"
-              >
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/20 text-primary">
-                  {user.name.charAt(0).toUpperCase()}
+              <>
+                <span className="hidden items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary sm:flex">
+                  <Star className="h-3.5 w-3.5" /> {points} pts
                 </span>
-                Logout
-              </button>
+                <button
+                  onClick={logout}
+                  className="hidden items-center gap-2 rounded-full border border-border bg-white/5 px-3 py-1.5 text-xs font-medium sm:flex"
+                >
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/20 text-primary">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                  Logout
+                </button>
+              </>
             ) : (
               <Link href="/login" className="hidden sm:block">
                 <Button variant="ghost" size="sm" className="rounded-full">
@@ -136,6 +153,12 @@ export function Navbar() {
                   {l.label}
                 </Link>
               ))}
+
+              {user && (
+                <div className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary">
+                  <Star className="h-3.5 w-3.5" /> {points} pts
+                </div>
+              )}
 
               {user ? (
                 <button

@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const User = require('../models/User'); 
 
 const generateExitCode = () => {
   return 'EXIT-' + Math.floor(1000 + Math.random() * 9000);
@@ -69,7 +70,13 @@ const checkoutOrder = async (req, res) => {
     cart.isCheckedOut = true;
     await cart.save();
 
-    res.status(201).json(order);
+    // Award loyalty points: 1 point per ₹10 spent
+const pointsEarned = Math.floor(totalAmount / 10);
+await User.findByIdAndUpdate(req.user._id, {
+  $inc: { loyaltyPoints: pointsEarned },
+});
+
+    res.status(201).json({ ...order.toObject(), pointsEarned });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
