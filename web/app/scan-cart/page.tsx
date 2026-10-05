@@ -71,16 +71,24 @@ const handlePaymentSuccess = async () => {
 
           <div className="mt-6 rounded-2xl bg-white/5 p-6">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              Show this at the exit gate
+              Show this code to staff at the exit gate
             </p>
             <p className="mt-3 font-mono text-4xl font-bold tracking-widest text-primary">
               {order.exitCode}
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Staff will enter this code on the Exit Gate Verification page to approve your exit.
             </p>
           </div>
 
           <Link href="/scan" className="mt-8 inline-block">
             <Button className="gap-2 rounded-full">
               Scan more items <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/staff/verify" className="mt-3 block">
+            <Button variant="outline" className="gap-2 rounded-full">
+              Go to Exit Gate Verification <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>

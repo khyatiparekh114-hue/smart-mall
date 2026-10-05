@@ -1,5 +1,5 @@
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
+const Cart = require('../models/cart');
+const Product = require('../models/product');
 
 // @desc    Get logged-in user's active cart (by cartType)
 // @route   GET /api/cart/:cartType

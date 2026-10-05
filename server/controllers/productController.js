@@ -1,4 +1,4 @@
-const Product = require('../models/Product');
+const Product = require('../models/product');
 const generateUniqueBarcode = require('../utils/generateBarcode');
 
 // @desc    Navo product banavo (Admin/Staff use kare)

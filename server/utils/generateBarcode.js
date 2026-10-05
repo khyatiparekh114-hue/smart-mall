@@ -1,4 +1,4 @@
-const Product = require('../models/Product');
+const Product = require('../models/product');
 
 // Calculate the EAN-13 check digit for a 12-digit prefix
 const calculateCheckDigit = (digits12) => {

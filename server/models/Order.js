@@ -1,182 +1,80 @@
-const Order = require('../models/Order');
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const User = require('../models/User');
+const mongoose = require('mongoose');
 
-const generateExitCode = () => {
-  return 'EXIT-' + Math.floor(1000 + Math.random() * 9000);
-};
+const orderItemSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true,
+  },
+  name: {
+    type: String,
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+  },
+  price: {
+    type: Number,
+    required: true,
+  },
+});
 
-// @desc    Checkout cart and create an order
-// @route   POST /api/orders/checkout
-const checkoutOrder = async (req, res) => {
-  try {
-    const { cartType, pickupSlot, redeemPoints } = req.body;
+const orderSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    orderType: {
+      type: String,
+      enum: ['scan_and_go', 'pre_book'],
+      required: true,
+    },
+    items: {
+      type: [orderItemSchema],
+      required: true,
+    },
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
+    discountApplied: {
+      type: Number,
+      default: 0,
+    },
+    pointsRedeemed: {
+      type: Number,
+      default: 0,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'paid', 'failed'],
+      default: 'pending',
+    },
+    orderStatus: {
+      type: String,
+      default: 'pending',
+    },
+    exitCode: {
+      type: String,
+    },
+    exitVerified: {
+      type: Boolean,
+      default: false,
+    },
+    exitVerifiedAt: {
+      type: Date,
+    },
+    pickupSlot: {
+      type: Date,
+    },
+    pickupCounter: {
+      type: String,
+    },
+  },
+  { timestamps: true }
+);
 
-    const cart = await Cart.findOne({
-      user: req.user._id,
-      cartType,
-      isCheckedOut: false,
-    }).populate('items.product');
-
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
-    }
-
-    for (const item of cart.items) {
-      if (item.product.stock < item.quantity) {
-        return res.status(400).json({
-          message: `${item.product.name} is out of stock`,
-        });
-      }
-    }
-
-    const orderItems = cart.items.map((item) => ({
-      product: item.product._id,
-      name: item.product.name,
-      quantity: item.quantity,
-      price: item.priceAtAddition,
-    }));
-
-    const cartTotal = orderItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
-    // --- Loyalty Points Redemption Logic ---
-    const MIN_ORDER_TO_REDEEM = 200;
-    const user = await User.findById(req.user._id);
-
-    let discountApplied = 0;
-    let pointsRedeemed = 0;
-
-    if (redeemPoints && cartTotal >= MIN_ORDER_TO_REDEEM) {
-      const maxDiscountAllowed = Math.floor(cartTotal * 0.5); // Cap: max 50% of order
-      const availablePoints = user.loyaltyPoints || 0;
-
-      pointsRedeemed = Math.min(availablePoints, maxDiscountAllowed);
-      discountApplied = pointsRedeemed; // 1 point = ₹1
-    }
-
-    const finalTotal = cartTotal - discountApplied;
-
-    const orderData = {
-      user: req.user._id,
-      orderType: cartType,
-      items: orderItems,
-      totalAmount: finalTotal,
-      discountApplied,
-      pointsRedeemed,
-      paymentStatus: 'paid',
-    };
-
-    if (cartType === 'scan_and_go') {
-      orderData.exitCode = generateExitCode();
-    } else if (cartType === 'pre_book') {
-      orderData.pickupSlot = pickupSlot || new Date();
-      orderData.pickupCounter = 'Express Counter 1';
-      orderData.orderStatus = 'placed';
-    }
-
-    const order = await Order.create(orderData);
-
-    for (const item of cart.items) {
-      await Product.findByIdAndUpdate(item.product._id, {
-        $inc: { stock: -item.quantity },
-      });
-    }
-
-    cart.isCheckedOut = true;
-    await cart.save();
-
-    // Deduct redeemed points, then award new points on the final paid amount
-    const pointsEarned = Math.floor(finalTotal / 10);
-    await User.findByIdAndUpdate(req.user._id, {
-      $inc: { loyaltyPoints: pointsEarned - pointsRedeemed },
-    });
-
-    res.status(201).json({ ...order.toObject(), pointsEarned, cartTotal });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get logged-in user's orders
-// @route   GET /api/orders/my-orders
-const getMyOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get a single order by ID
-// @route   GET /api/orders/:id
-const getOrderById = async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    res.status(200).json(order);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Verify a Scan & Go exit code at the gate (staff use)
-// @route   POST /api/orders/verify-exit
-const verifyExitCode = async (req, res) => {
-  try {
-    const { exitCode } = req.body;
-
-    if (!exitCode) {
-      return res.status(400).json({ allowed: false, message: 'No exit code provided' });
-    }
-
-    const order = await Order.findOne({ exitCode, orderType: 'scan_and_go' }).populate(
-      'user',
-      'name email'
-    );
-
-    if (!order) {
-      return res.status(404).json({ allowed: false, message: 'Invalid exit code — no matching order' });
-    }
-
-    if (order.paymentStatus !== 'paid') {
-      return res.status(400).json({ allowed: false, message: 'Order is not paid for' });
-    }
-
-    if (order.exitVerified) {
-      return res.status(400).json({
-        allowed: false,
-        message: `This code was already used at ${new Date(order.exitVerifiedAt).toLocaleString('en-IN')}`,
-      });
-    }
-
-    order.exitVerified = true;
-    order.exitVerifiedAt = new Date();
-    await order.save();
-
-    res.status(200).json({
-      allowed: true,
-      message: 'Exit approved',
-      customerName: order.user?.name,
-      items: order.items,
-      totalAmount: order.totalAmount,
-    });
-  } catch (error) {
-    res.status(500).json({ allowed: false, message: error.message });
-  }
-};
-
-module.exports = {
-  checkoutOrder,
-  getMyOrders,
-  getOrderById,
-  verifyExitCode,
-};
+module.exports = mongoose.model('Order', orderSchema);

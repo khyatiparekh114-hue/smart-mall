@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ShieldCheck, ShieldX, ScanLine, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -97,6 +98,12 @@ export default function StaffVerifyPage() {
                 <span>₹{result.totalAmount}</span>
               </p>
             </div>
+          )}
+
+          {result.allowed && (
+            <Link href="/" className="mt-5 inline-block">
+              <Button className="rounded-full">Back to Home</Button>
+            </Link>
           )}
         </div>
       )}
